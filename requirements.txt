@@ -1,0 +1,15 @@
+langchain
+langchain_community
+langchain-openai
+langchain-groq
+python-dotenv
+langchain-google-genai
+langchain-ollama
+langsmith
+langchain-text-splitters
+bs4 
+requests
+pypdf
+langchain-chroma
+langchain-core
+langchain-text-splitters
