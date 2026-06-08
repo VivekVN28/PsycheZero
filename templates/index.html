@@ -1,47 +1,187 @@
 <!DOCTYPE html>
 <html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Psychology Assistant</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: sans-serif; background: #f5f5f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+
+  #chat-wrap { display: flex; flex-direction: column; height: 580px; width: 100%; max-width: 700px; background: #fff; border: 0.5px solid #e0e0d8; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
+
+  #chat-header { padding: 14px 20px; border-bottom: 0.5px solid #e0e0d8; display: flex; align-items: center; gap: 12px; background: #f9f9f6; }
+  #avatar { width: 36px; height: 36px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  #avatar i { font-size: 18px; color: #534AB7; }
+  #header-info { flex: 1; }
+  #header-info h2 { font-size: 15px; font-weight: 500; color: #1a1a1a; }
+  #header-info p { font-size: 12px; color: #888; }
+  #status-dot { width: 8px; height: 8px; border-radius: 50%; background: #1D9E75; flex-shrink: 0; }
+
+  #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+  #messages::-webkit-scrollbar { width: 4px; }
+  #messages::-webkit-scrollbar-thumb { background: #e0e0d8; border-radius: 2px; }
+
+  .msg { display: flex; gap: 10px; align-items: flex-end; max-width: 82%; animation: fadeUp 0.25s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+  .bubble { padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.55; }
+  .msg.bot .bubble { background: #f2f2ee; color: #1a1a1a; border-bottom-left-radius: 4px; border: 0.5px solid #e0e0d8; }
+  .msg.user .bubble { background: #534AB7; color: #fff; border-bottom-right-radius: 4px; }
+
+  .bot-icon { width: 28px; height: 28px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .bot-icon i { font-size: 14px; color: #534AB7; }
+
+  .typing { display: flex; gap: 4px; align-items: center; padding: 12px 14px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #888; animation: bounce 1.2s ease infinite; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+
+  #input-area { border-top: 0.5px solid #e0e0d8; padding: 12px 16px; display: flex; gap: 10px; align-items: flex-end; background: #fff; }
+  #user-input { flex: 1; resize: none; border: 0.5px solid #ccc; border-radius: 20px; padding: 10px 16px; font-size: 14px; font-family: sans-serif; color: #1a1a1a; background: #f9f9f6; outline: none; max-height: 120px; min-height: 40px; line-height: 1.5; transition: border-color 0.15s; }
+  #user-input:focus { border-color: #534AB7; }
+  #user-input::placeholder { color: #aaa; }
+
+  #send-btn { width: 40px; height: 40px; border-radius: 50%; background: #534AB7; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, transform 0.1s; }
+  #send-btn:hover { background: #3C3489; }
+  #send-btn:active { transform: scale(0.95); }
+  #send-btn i { font-size: 17px; color: #fff; }
+  #send-btn:disabled { background: #e0e0d8; cursor: default; }
+  #send-btn:disabled i { color: #aaa; }
+
+  .suggestion-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 16px; }
+  .chip { font-size: 12px; padding: 6px 12px; border-radius: 14px; border: 0.5px solid #ccc; background: #f9f9f6; color: #555; cursor: pointer; transition: all 0.15s; }
+  .chip:hover { border-color: #534AB7; color: #534AB7; background: #EEEDFE; }
+</style>
+</head>
 <body>
 
-<h1>Psychology Assistant</h1>
+<div id="chat-wrap">
+  <div id="chat-header">
+    <div id="avatar"><i class="ti ti-brain"></i></div>
+    <div id="header-info">
+      <h2>Psychology Assistant</h2>
+      <p>Here to help you understand your mind</p>
+    </div>
+    <div id="status-dot" title="Online"></div>
+  </div>
 
-<textarea id="query" rows="5" cols="50"></textarea>
+  <div id="messages">
+    <div class="msg bot">
+      <div class="bot-icon"><i class="ti ti-brain"></i></div>
+      <div class="bubble">Hello! I'm your psychology assistant. I'm here to help you explore psychological concepts, understand behaviors, or discuss mental well-being. What's on your mind today?</div>
+    </div>
+  </div>
 
-<br><br>
+  <div class="suggestion-chips" id="chips">
+    <button class="chip" onclick="useChip(this)">What is cognitive dissonance?</button>
+    <button class="chip" onclick="useChip(this)">How does anxiety develop?</button>
+    <button class="chip" onclick="useChip(this)">Explain attachment styles</button>
+    <button class="chip" onclick="useChip(this)">Tips for managing stress</button>
+  </div>
 
-<button onclick="ask()">
-Ask
-</button>
-
-<h3>Answer</h3>
-
-<div id="answer"></div>
+  <div id="input-area">
+    <textarea id="user-input" placeholder="Ask me anything about psychology…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button id="send-btn" onclick="sendMessage()" aria-label="Send message">
+      <i class="ti ti-send-2"></i>
+    </button>
+  </div>
+</div>
 
 <script>
+const messages = document.getElementById('messages');
+const input = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const chips = document.getElementById('chips');
+let history = [];
 
-async function ask() {
-
-    const query =
-        document.getElementById("query").value;
-
-    const response = await fetch(
-        "/chat",
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                query: query
-            })
-        }
-    );
-
-    const data = await response.json();
-
-    document.getElementById("answer").innerText =
-        data.answer;
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function useChip(btn) {
+  input.value = btn.textContent;
+  chips.style.display = 'none';
+  sendMessage();
+}
+
+function addMessage(role, text) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + role;
+  if (role === 'bot') {
+    const icon = document.createElement('div');
+    icon.className = 'bot-icon';
+    icon.innerHTML = '<i class="ti ti-brain"></i>';
+    wrap.appendChild(icon);
+  }
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  messages.appendChild(wrap);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function showTyping() {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg bot';
+  wrap.id = 'typing-indicator';
+  const icon = document.createElement('div');
+  icon.className = 'bot-icon';
+  icon.innerHTML = '<i class="ti ti-brain"></i>';
+  wrap.appendChild(icon);
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble typing';
+  bubble.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  wrap.appendChild(bubble);
+  messages.appendChild(wrap);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+  chips.style.display = 'none';
+  addMessage('user', text);
+  history.push({ role: 'user', content: text });
+  input.value = '';
+  input.style.height = 'auto';
+  sendBtn.disabled = true;
+  showTyping();
+
+  try {
+    // Replace this fetch with your Django /chat endpoint
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: text, history: history })
+    });
+    const data = await res.json();
+    const reply = data.answer || 'Sorry, I could not get a response.';
+    history.push({ role: 'assistant', content: reply });
+    removeTyping();
+    addMessage('bot', reply);
+  } catch (err) {
+    removeTyping();
+    addMessage('bot', 'Something went wrong. Please check your connection and try again.');
+  }
+
+  sendBtn.disabled = false;
+  input.focus();
+}
 </script>
 
 </body>

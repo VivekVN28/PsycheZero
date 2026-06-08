@@ -1,12 +1,15 @@
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader,WebBaseLoader
-from langchain_ollama import OllamaEmbeddings
+from langchain_ollama import OllamaEmbeddings,ChatOllama
 from sentence_transformers import SentenceTransformer,CrossEncoder
 from langchain_huggingface import HuggingFaceEmbeddings
 
 embedding_model = HuggingFaceEmbeddings(
     model_name="BAAI/bge-base-en-v1.5"
+)
+llm = ChatOllama(
+    model="qwen2.5:1.5b"
 )
 
 # embedding_model=OllamaEmbeddings(model="nomic-embed-text")
@@ -34,7 +37,19 @@ class VectorStore:
         for chunk in chunks:
             chunk.metadata["source"]=source_name
         return self.vectorstore.add_documents(chunks)
-    def rerank(query, docs, top_k=5):
+    def generate_hyde(self,query):
+        prompt = f"""
+        Write a short psychology article answering:
+
+        {query}
+
+        Do not mention that this is hypothetical.
+        """
+
+        response = llm.invoke(prompt)
+
+        return response.content
+    def rerank(self,query, docs, top_k=5):
 
         pairs = [
             (query, doc.page_content)
@@ -49,18 +64,23 @@ class VectorStore:
             reverse=True
         )
         print(f"Reranked chunks: {ranked}")
-        return [doc for doc, score in ranked[:top_k]]
+        ranked_doc=[doc for doc, score in ranked[:top_k]]
+        return 
     def retrieve(self,query:str,k:int=10):
 
         results=self.vectorstore.similarity_search_with_score(query,k=5)
         print("\n=== RETRIEVAL SCORES ===")
+        for i, (doc, score) in enumerate(results, 1):
+            print(f"\n[{i}] Score={score:.4f}")
+            print(f"Source={doc.metadata.get('source')}")
+            print(doc.page_content[:300])
+            print("=" * 80)
 
-        threshold=0.6
-        docs=[]
-        for doc, score in results:
-            if score<=threshold:
-                docs.append(doc)
-        print(f"Retrieved {len(docs)} docs")
+        docs = [doc for doc, score in results]
+        
+        print(f"Retrieved {len(results)} docs")
+
+        print(f"Retrieved chunks: {docs}")
         return docs
     
 

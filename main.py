@@ -27,10 +27,10 @@ app.add_middleware(
 builder = StateGraph(state_schema=MessagesState)
 
 
-store = VectorStore("Psychology")
+store = VectorStore("Petergray_psychology")
 
 llm = ChatOllama(
-    model="llama3.1:8b"
+    model="LiquidAI/lfm2.5-1.2b-instruct:latest"
 )
 def chat_node(state: MessagesState):
     
@@ -38,30 +38,36 @@ def chat_node(state: MessagesState):
     
         
     latest_user_msg=history[-1].content 
-    docs=store.retrieve(latest_user_msg)
-    docs = store.rerank(
-    latest_user_msg,
-    docs,
-    top_k=5
-)
-    context = "\n".join(
-        doc.page_content
-        for doc,score in docs
-    )
+    
+    # hyde=store.generate_hyde(latest_user_msg)
+    # print("\n=== HYDE ===")
+    # print(hyde)
+    # docs=store.retrieve(latest_user_msg)
+    # if docs:
+    #     docs = store.rerank(
+    #     latest_user_msg,
+    #     docs,
+    #     top_k=5
+    #     )
+    # context = "\n".join(
+    #     doc.page_content
+    #     for doc in docs
+    # )
 
-    sys_message = SystemMessage(
-        content=f"""
-    You are a psychology therapist.
-    Use the provided context when necessary.
+    # sys_message = SystemMessage(
+    #     content=f"""
+    # You are a psychology therapist.
+    # Use the provided context when necessary.
 
-    Context:
-    {context}
+    # Context:
+    # {context}
 
    
-    """)
+    # """)
 
 
-    prompt = [sys_message] + history
+    # prompt = [sys_message] + history
+    prompt=history
     response = llm.invoke(prompt)
     return {"messages": [response]}
 
@@ -70,7 +76,7 @@ builder.add_edge(START,"chatllm")
 
 memory=MemorySaver()
 chat_app=builder.compile(checkpointer=memory)
-thread_id="2"
+thread_id="4"
 class ChatRequest(BaseModel):
     query: str
 
