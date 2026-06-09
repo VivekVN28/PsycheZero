@@ -13,6 +13,7 @@ from langgraph.graph import StateGraph, START, MessagesState
 from langchain_deepseek import ChatDeepSeek
 from langgraph.checkpoint.sqlite import SqliteSaver
 from uuid import uuid4
+from typing import Literal
 import sqlite3
 
 import os
@@ -37,54 +38,114 @@ store = VectorStore("Petergray_psychology")
 llm = ChatOllama(
     model="qwen2.5:1.5b"
 )
+class Route(BaseModel):
+    category: Literal["chatllm","rag"]
+    
+    
 # llm=ChatDeepSeek(
 #     model="	deepseek-v4-flash"
 # )
 def chat_node(state: MessagesState):
     
+    SYSTEM_PROMPT = """
+    You are an empathetic psychological support assistant.
+
+    Your primary goals are:
+    - Understand the user's emotions, thoughts, and experiences.
+    - Ask clarifying questions when appropriate.
+    - Help the user explore their feelings.
+    - Identify possible cognitive distortions when asked.
+
+    Do not provide advice, solutions, coping strategies, or action plans unless the user explicitly asks for them.
+
+    Prioritize understanding before problem-solving.
+    """
+    messages = [
+        SystemMessage(content=SYSTEM_PROMPT)
+    ] + state["messages"]
+
+    response = llm.invoke(messages)
+
+    return {
+        "messages": [response]
+    }
+    
+
+def rag_node(state: MessagesState):
     history=state["messages"]
     
         
     latest_user_msg=history[-1].content 
     
-    # hyde=store.generate_hyde(latest_user_msg)
-    # print("\n=== HYDE ===")
-    # print(hyde)
-    # docs=store.retrieve(latest_user_msg)
-    # if docs:
-    #     docs = store.rerank(
-    #     latest_user_msg,
-    #     docs,
-    #     top_k=5
-    #     )
-    # context = "\n".join(
-    #     doc.page_content
-    #     for doc in docs
-    # )
+    hyde=store.generate_hyde(latest_user_msg)
+    print("\n=== HYDE ===")
+    print(hyde)
+    docs=store.retrieve(latest_user_msg)
+    if docs:
+        docs = store.rerank(
+        latest_user_msg,
+        docs,
+        top_k=5
+        )
+    context = "\n".join(
+        doc.page_content
+        for doc in docs
+    )
 
-    # sys_message = SystemMessage(
-    #     content=f"""
-    # You are a psychology therapist.
-    # Use the provided context when necessary.
+    sys_message = SystemMessage(
+        content=f"""
+    You are a psychology therapist.
+    Use the provided context when necessary.
 
-    # Context:
-    # {context}
+    Context:
+    {context}
 
    
-    # """)
+    """)
 
 
-    # prompt = [sys_message] + history
-    print("history:")
-    
-    for msg in history:
-        print(msg.type, msg.content)
-    prompt=history
+    prompt = [sys_message,HumanMessage(content=latest_user_msg)]
     response = llm.invoke(prompt)
     return {"messages": [response]}
+def router_node(state: MessagesState):
+    prompt=state["messages"][-1].content
+
+    EMOTIONAL_WORDS = {
+    "anxious",
+    "sad",
+    "lonely",
+    "worried",
+    "depressed",
+    "stress",
+    "angry",
+    "tired",
+    "fed up"
+    }
+    matched_words = [word for word in EMOTIONAL_WORDS if word in prompt.lower()]
+    if matched_words:
+        return "chatllm"
+    router_llm=llm.with_structured_output(Route)
+    result = router_llm.invoke(f"""
+    Classify the following user message.
+
+    User Message:
+    {prompt}
+
+    Return:
+    - rag → if the user is asking about a psychology concept, theory, definition, explanation, or factual knowledge.
+    - chatllm → if the user is discussing personal experiences, emotions, worries, feelings,  seeking support or just having a conversion.
+
+    Return only one word:
+    rag
+    or
+    chatllm
+    """)
+    return result.category
+
 
 builder.add_node("chatllm",chat_node)
-builder.add_edge(START,"chatllm")
+builder.add_node("rag",rag_node)
+builder.add_conditional_edges(START,router_node)
 
 conn = sqlite3.connect(
     "checkpoints.db",

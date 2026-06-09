@@ -64,7 +64,7 @@ class VectorStore:
         )
         print(f"Reranked chunks: {ranked}")
         ranked_doc=[doc for doc, score in ranked[:top_k]]
-        return 
+        return ranked_doc
     def retrieve(self,query:str,k:int=10):
 
         results=self.vectorstore.similarity_search_with_score(query,k=5)
