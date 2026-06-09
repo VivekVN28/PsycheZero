@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Cookie, Response
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -10,6 +10,11 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, START, MessagesState
+from langchain_deepseek import ChatDeepSeek
+from langgraph.checkpoint.sqlite import SqliteSaver
+from uuid import uuid4
+import sqlite3
+
 import os
 load_dotenv()
 
@@ -30,8 +35,11 @@ builder = StateGraph(state_schema=MessagesState)
 store = VectorStore("Petergray_psychology")
 
 llm = ChatOllama(
-    model="LiquidAI/lfm2.5-1.2b-instruct:latest"
+    model="qwen2.5:1.5b"
 )
+# llm=ChatDeepSeek(
+#     model="	deepseek-v4-flash"
+# )
 def chat_node(state: MessagesState):
     
     history=state["messages"]
@@ -67,6 +75,10 @@ def chat_node(state: MessagesState):
 
 
     # prompt = [sys_message] + history
+    print("history:")
+    
+    for msg in history:
+        print(msg.type, msg.content)
     prompt=history
     response = llm.invoke(prompt)
     return {"messages": [response]}
@@ -74,9 +86,14 @@ def chat_node(state: MessagesState):
 builder.add_node("chatllm",chat_node)
 builder.add_edge(START,"chatllm")
 
-memory=MemorySaver()
+conn = sqlite3.connect(
+    "checkpoints.db",
+    check_same_thread=False
+)
+
+memory = SqliteSaver(conn)
 chat_app=builder.compile(checkpointer=memory)
-thread_id="4"
+
 class ChatRequest(BaseModel):
     query: str
 
@@ -91,23 +108,55 @@ def home():
         return f.read()
 
 
-@app.post("/chat")
-async def chat(request: ChatRequest):
+# @app.post("/chat")
+# async def chat(request: ChatRequest):
     
-    query = request.query
-    
-    state_update={"messages":[HumanMessage(content=query)]}
-    response = chat_app.invoke(
-        state_update,
-        config={
-        "callbacks": [langfuse_handler],
-        "configurable":{
-            "thread_id":thread_id
-        }
+#     query = request.query  
+#     thread_id="1"
+#     state_update={"messages":[HumanMessage(content=query)]}
+#     response = chat_app.invoke(
+#         state_update,
+#         config={
+#         "callbacks": [langfuse_handler],
+#         "configurable":{
+#             "thread_id":thread_id
+#         }
         
-    })
+#     })
+
+#     return {
+#         "answer": response["messages"][-1].content,
+
+#     }
+
+@app.post("/chat")
+async def chat(
+    request: ChatRequest,
+    response: Response,
+    anonymous_user_id: str = Cookie(None)
+):
+    
+    if not anonymous_user_id:
+        anonymous_user_id = str(uuid4())
+
+        response.set_cookie(
+            key="anonymous_user_id",
+            value=anonymous_user_id,
+            httponly=True,
+            max_age=60 * 60 * 24 * 365  # 1 year
+        )
+
+    result = chat_app.invoke(
+        {"messages": [HumanMessage(content=request.query)]},
+        config={
+            "callbacks": [langfuse_handler],
+            "configurable": {
+                "thread_id": anonymous_user_id,
+                "user_id": anonymous_user_id
+            }
+        }
+    )
 
     return {
-        "answer": response["messages"][-1].content,
-
+        "answer": result["messages"][-1].content
     }

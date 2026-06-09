@@ -39,11 +39,10 @@ class VectorStore:
         return self.vectorstore.add_documents(chunks)
     def generate_hyde(self,query):
         prompt = f"""
-        Write a short psychology article answering:
+        Write a short answer for this query: :
 
         {query}
 
-        Do not mention that this is hypothetical.
         """
 
         response = llm.invoke(prompt)
