@@ -6,7 +6,7 @@ To optimize rag retrieval techniques such as chunking, recursive splitting,seman
 
 In order to make fast and accurate classification, I have fine tuned ModernBert with 2 datasets on CBT classification tasks 
 1. Cognitive Distortion detetction dataset on kaggle:https://www.kaggle.com/datasets/sagarikashreevastava/cognitive-distortion-detetction-dataset/data
-2. Mendeley Data: https://data.mendeley.com/datasets/k84bkv8dkt/4
+2. Cognitive Distortion Dataset for Text Classification in Bahasa Indonesia: https://data.mendeley.com/datasets/k84bkv8dkt/4
 
 ['All-or-nothing thinking',
  'Emotional Reasoning',
