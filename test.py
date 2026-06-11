@@ -1,29 +1,48 @@
 from vector_db import VectorStore
 from langchain_ollama import ChatOllama
-
-
+from main import router_node
+from langchain_core.messages import HumanMessage
 llm=ChatOllama(
-    model="llama3.2:1b"
+    model="qwen2.5:1.5b"
 )
-new=VectorStore(collection_name="Psychology")
 
-# new.add_documents(r"D:\AI Engineering\docs\Termination of decline welbeing.pdf","APA")
-query="what are types of resilience ?"
+test_cases = [
+    {
+        "query": "What is CBT?",
+        "expected": "rag"
+    },
+    {
+        "query": "Explain attachment theory",
+        "expected": "rag"
+    },
+    {
+        "query": "I feel lonely",
+        "expected": "chatllm"
+    },
+    {
+        "query": "I am anxious about exams",
+        "expected": "chatllm"
+    },
+]
+for case in test_cases:
 
-documents=new.retrieve(query)
-context="\n".join([doc.page_content for doc in documents])
-print(context)
-prompt = f"""
-Use only the provided context.
+    state = {
+        "messages": [
+            HumanMessage(content=case["query"])
+        ]
+    }
 
+    predicted = router_node(state)
 
-Context:
-{context}
+    print(
+        case["query"],
+        predicted,
+        case["expected"]
+    )
+    if predicted == case["expected"]:
+        correct += 1
 
-Question:
-{query}
-"""
-response=llm.invoke(query)
-print(response.content)
-print(response)
+accuracy = correct / len(test_cases)
+
+print(f"Accuracy: {accuracy:.2%}")
 

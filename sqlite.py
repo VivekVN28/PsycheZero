@@ -5,7 +5,7 @@ conn = sqlite3.connect("checkpoints.db")
 cursor = conn.cursor()
 
 cursor.execute(
-    "SELECT * FROM checkpoints LIMIT 5"
+    "SELECT * FROM checkpoints"
 )
 
 rows = cursor.fetchall()

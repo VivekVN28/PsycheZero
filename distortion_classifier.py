@@ -1,0 +1,1 @@
+DISTORTIONS=["All-or-nothing thinking","Overgeneralization","Mental filter","Should statements","Labelling","Personlization","Magnification","Emotional Reasoning","Mind Reading","Fortune-telling","No distortions"]

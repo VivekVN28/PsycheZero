@@ -36,7 +36,7 @@ builder = StateGraph(state_schema=MessagesState)
 store = VectorStore("Petergray_psychology")
 
 llm = ChatOllama(
-    model="qwen2.5:1.5b"
+    model="qwen2.5:3b"
 )
 class Route(BaseModel):
     category: Literal["chatllm","rag"]
@@ -50,15 +50,34 @@ def chat_node(state: MessagesState):
     SYSTEM_PROMPT = """
     You are an empathetic psychological support assistant.
 
-    Your primary goals are:
-    - Understand the user's emotions, thoughts, and experiences.
-    - Ask clarifying questions when appropriate.
-    - Help the user explore their feelings.
-    - Identify possible cognitive distortions when asked.
+    IMPORTANT RULES:
 
-    Do not provide advice, solutions, coping strategies, or action plans unless the user explicitly asks for them.
+    1. Do NOT give advice.
+    2. Do NOT suggest activities.
+    3. Do NOT provide coping strategies.
+    4. Do NOT try to solve the user's problem.
+    5. Focus on understanding.
 
-    Prioritize understanding before problem-solving.
+    When a user shares a feeling, first:
+    - reflect what they said
+    - explore their experience
+    - ask clarifying questions one at a time
+
+    Example:
+
+        User: "Lately I've been feeling very anxious and don't know how to relieve it."
+
+        Assistant:
+        "What do you think is contributing most to that anxiety right now?"
+
+        User:
+        "But I always feel like whatever I do isn't good enough, and I'm very afraid of failure."
+
+        Assistant:
+        "You mentioned feeling not good enough and fearing failure. How does that affect your ability to focus on tasks?"
+
+        User:
+        "But I can never concentrate, and I procrastinate a lot."
     """
     messages = [
         SystemMessage(content=SYSTEM_PROMPT)
@@ -120,6 +139,15 @@ def router_node(state: MessagesState):
     "angry",
     "tired",
     "fed up"
+    }
+    PSYCHOLOGY_WORDS = {
+    "cbt",
+    "conditioning",
+    "attachment",
+    "memory",
+    "cognitive distortion",
+    "psychology",
+    "theory"
     }
     matched_words = [word for word in EMOTIONAL_WORDS if word in prompt.lower()]
     if matched_words:

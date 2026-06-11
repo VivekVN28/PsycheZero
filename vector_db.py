@@ -6,7 +6,10 @@ from sentence_transformers import SentenceTransformer,CrossEncoder
 from langchain_huggingface import HuggingFaceEmbeddings
 
 embedding_model = HuggingFaceEmbeddings(
-    model_name="BAAI/bge-base-en-v1.5"
+    model_name="./models/BAAI/bge-base-en-v1.5"
+)
+reranker = CrossEncoder(
+    "./models/BAAI/bge-reranker-base"
 )
 llm = ChatOllama(
     model="qwen2.5:1.5b"
@@ -14,9 +17,6 @@ llm = ChatOllama(
 
 # embedding_model=OllamaEmbeddings(model="nomic-embed-text")
 
-reranker = CrossEncoder(
-    "BAAI/bge-reranker-base"
-)
 
 class VectorStore:
     def __init__(self,collection_name,embedding_model=embedding_model,persist_directory="./chroma_db"):
