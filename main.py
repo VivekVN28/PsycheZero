@@ -15,7 +15,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from uuid import uuid4
 from typing import Literal
 import sqlite3
-
+import torch
 import os
 load_dotenv()
 
@@ -36,7 +36,7 @@ builder = StateGraph(state_schema=MessagesState)
 store = VectorStore("Petergray_psychology")
 
 llm = ChatOllama(
-    model="qwen2.5:3b"
+    model="qwen2.5:1.5b"
 )
 class Route(BaseModel):
     category: Literal["chatllm","rag"]
@@ -45,6 +45,91 @@ class Route(BaseModel):
 # llm=ChatDeepSeek(
 #     model="	deepseek-v4-flash"
 # )
+from transformers import (
+    AutoTokenizer,
+    AutoModelForSequenceClassification
+)
+
+model_path = r"models\finetuned ModernBERT"
+
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+model = AutoModelForSequenceClassification.from_pretrained(
+    model_path
+)
+id2label = {
+    0: "All-or-nothing thinking",
+    1: "Emotional Reasoning",
+    2: "Fortune-Telling",
+    3: "Labeling",
+    4: "Magnification",
+    5: "Mental filter",
+    6: "Mind Reading",
+    7: "No Distortion",
+    8: "Overgeneralization",
+    9: "Personalization",
+    10: "Should statements"
+}
+def resolve_no_distortion(top_results):
+
+    no_dist = next(
+        (x for x in top_results
+         if x["distortion"] == "No Distortion"),
+        None
+    )
+
+    if not no_dist:
+        return top_results
+
+    no_score = no_dist["confidence"]
+
+    other_sum = sum(
+        x["confidence"]
+        for x in top_results
+        if x["distortion"] != "No Distortion"
+    )
+
+    MARGIN = 0.10
+
+    if no_score > other_sum + MARGIN:
+        return [no_dist]
+
+    return [
+        x for x in top_results
+        if x["distortion"] != "No Distortion"
+    ]
+def detect_distortions(text, threshold=0.30, top_k=4):
+    inputs = tokenizer(
+        text,
+        return_tensors="pt",
+        truncation=True,
+        max_length=256
+    )
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    probs = torch.sigmoid(outputs.logits)[0]
+
+    results = [
+        {
+            "distortion": id2label[i],
+            "confidence": round(float(probs[i]), 4)
+        }
+        for i in range(len(probs))
+    ]
+
+    results.sort(
+        key=lambda x: x["confidence"],
+        reverse=True
+    )
+
+    active_distortions = [
+        item
+        for item in results
+    ][:top_k]
+
+    return resolve_no_distortion(active_distortions)
 def chat_node(state: MessagesState):
     
     SYSTEM_PROMPT = """
@@ -79,6 +164,7 @@ def chat_node(state: MessagesState):
         User:
         "But I can never concentrate, and I procrastinate a lot."
     """
+    
     messages = [
         SystemMessage(content=SYSTEM_PROMPT)
     ] + state["messages"]
@@ -197,43 +283,23 @@ def home():
         return f.read()
 
 
-# @app.post("/chat")
-# async def chat(request: ChatRequest):
-    
-#     query = request.query  
-#     thread_id="1"
-#     state_update={"messages":[HumanMessage(content=query)]}
-#     response = chat_app.invoke(
-#         state_update,
-#         config={
-#         "callbacks": [langfuse_handler],
-#         "configurable":{
-#             "thread_id":thread_id
-#         }
-        
-#     })
-
-#     return {
-#         "answer": response["messages"][-1].content,
-
-#     }
-
 @app.post("/chat")
 async def chat(
     request: ChatRequest,
     response: Response,
     anonymous_user_id: str = Cookie(None)
 ):
-    
     if not anonymous_user_id:
         anonymous_user_id = str(uuid4())
-
         response.set_cookie(
             key="anonymous_user_id",
             value=anonymous_user_id,
             httponly=True,
-            max_age=60 * 60 * 24 * 365  # 1 year
+            max_age=60 * 60 * 24 * 365
         )
+
+    
+    distortions = detect_distortions(request.query)
 
     result = chat_app.invoke(
         {"messages": [HumanMessage(content=request.query)]},
@@ -247,5 +313,6 @@ async def chat(
     )
 
     return {
-        "answer": result["messages"][-1].content
+        "answer": result["messages"][-1].content,
+        "distortions": distortions  
     }

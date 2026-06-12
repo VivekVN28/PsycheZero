@@ -5,13 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Psychology Assistant</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: sans-serif; background: #f5f5f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
 
-  #chat-wrap { display: flex; flex-direction: column; height: 580px; width: 100%; max-width: 700px; background: #fff; border: 0.5px solid #e0e0d8; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
+  #app { display: flex; gap: 16px; width: 100%; max-width: 1100px; align-items: flex-start; }
 
-  #chat-header { padding: 14px 20px; border-bottom: 0.5px solid #e0e0d8; display: flex; align-items: center; gap: 12px; background: #f9f9f6; }
+  /* ── chat panel ── */
+  #chat-wrap { display: flex; flex-direction: column; height: 640px; flex: 1; min-width: 0; background: #fff; border: 0.5px solid #e0e0d8; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
+
+  #chat-header { padding: 14px 20px; border-bottom: 0.5px solid #e0e0d8; display: flex; align-items: center; gap: 12px; background: #f9f9f6; flex-shrink: 0; }
   #avatar { width: 36px; height: 36px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   #avatar i { font-size: 18px; color: #534AB7; }
   #header-info { flex: 1; }
@@ -23,12 +27,15 @@
   #messages::-webkit-scrollbar { width: 4px; }
   #messages::-webkit-scrollbar-thumb { background: #e0e0d8; border-radius: 2px; }
 
-  .msg { display: flex; gap: 10px; align-items: flex-end; max-width: 82%; animation: fadeUp 0.25s ease; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg-group { display: flex; flex-direction: column; gap: 4px; }
+  .msg-group.user { align-items: flex-end; }
+  .msg-group.bot  { align-items: flex-start; }
+
+  .msg { display: flex; gap: 10px; align-items: flex-end; max-width: 85%; animation: fadeUp 0.25s ease; }
+  .msg.user { flex-direction: row-reverse; }
 
   .bubble { padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.55; }
-  .msg.bot .bubble { background: #f2f2ee; color: #1a1a1a; border-bottom-left-radius: 4px; border: 0.5px solid #e0e0d8; }
+  .msg.bot .bubble  { background: #f2f2ee; color: #1a1a1a; border-bottom-left-radius: 4px; border: 0.5px solid #e0e0d8; }
   .msg.user .bubble { background: #534AB7; color: #fff; border-bottom-right-radius: 4px; }
 
   .bot-icon { width: 28px; height: 28px; border-radius: 50%; background: #EEEDFE; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -38,13 +45,17 @@
   .dot { width: 6px; height: 6px; border-radius: 50%; background: #888; animation: bounce 1.2s ease infinite; }
   .dot:nth-child(2) { animation-delay: 0.2s; }
   .dot:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-  #input-area { border-top: 0.5px solid #e0e0d8; padding: 12px 16px; display: flex; gap: 10px; align-items: flex-end; background: #fff; }
+  .suggestion-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 16px; flex-shrink: 0; }
+  .chip { font-size: 12px; padding: 6px 12px; border-radius: 14px; border: 0.5px solid #ccc; background: #f9f9f6; color: #555; cursor: pointer; transition: all 0.15s; }
+  .chip:hover { border-color: #534AB7; color: #534AB7; background: #EEEDFE; }
+
+  #input-area { border-top: 0.5px solid #e0e0d8; padding: 12px 16px; display: flex; gap: 10px; align-items: flex-end; background: #fff; flex-shrink: 0; }
   #user-input { flex: 1; resize: none; border: 0.5px solid #ccc; border-radius: 20px; padding: 10px 16px; font-size: 14px; font-family: sans-serif; color: #1a1a1a; background: #f9f9f6; outline: none; max-height: 120px; min-height: 40px; line-height: 1.5; transition: border-color 0.15s; }
   #user-input:focus { border-color: #534AB7; }
   #user-input::placeholder { color: #aaa; }
-
   #send-btn { width: 40px; height: 40px; border-radius: 50%; background: #534AB7; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s, transform 0.1s; }
   #send-btn:hover { background: #3C3489; }
   #send-btn:active { transform: scale(0.95); }
@@ -52,97 +63,245 @@
   #send-btn:disabled { background: #e0e0d8; cursor: default; }
   #send-btn:disabled i { color: #aaa; }
 
-  .suggestion-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 16px; }
-  .chip { font-size: 12px; padding: 6px 12px; border-radius: 14px; border: 0.5px solid #ccc; background: #f9f9f6; color: #555; cursor: pointer; transition: all 0.15s; }
-  .chip:hover { border-color: #534AB7; color: #534AB7; background: #EEEDFE; }
+  /* ── distortion panel ── */
+  #distortion-panel { width: 320px; flex-shrink: 0; background: #fff; border: 0.5px solid #e0e0d8; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.07); display: flex; flex-direction: column; height: 640px; }
+
+  #panel-header { padding: 14px 16px; border-bottom: 0.5px solid #e0e0d8; background: #f9f9f6; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  #panel-header i { font-size: 16px; color: #534AB7; }
+  #panel-header span { font-size: 14px; font-weight: 500; color: #1a1a1a; }
+
+  #panel-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  #panel-body::-webkit-scrollbar { width: 4px; }
+  #panel-body::-webkit-scrollbar-thumb { background: #e0e0d8; border-radius: 2px; }
+
+  #panel-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 10px; color: #bbb; padding: 40px 20px; text-align: center; }
+  #panel-empty i { font-size: 32px; }
+  #panel-empty p { font-size: 13px; line-height: 1.5; }
+
+  .panel-entry { display: flex; flex-direction: column; gap: 0; animation: fadeUp 0.3s ease; }
+  .panel-entry-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+
+  .chart-canvas-wrap { position: relative; width: 100%; }
+
+  .panel-pills { display: flex; flex-direction: column; gap: 0; margin-top: 10px; border-top: 0.5px solid #ebebeb; padding-top: 6px; }
+
+  .pill-item { display: flex; flex-direction: column; }
+
+  .panel-pill-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; }
+  .panel-pill-name { font-size: 12px; color: #444; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill-conf { font-size: 11px; font-weight: 600; min-width: 32px; text-align: right; }
+  .pill-conf.high { color: #D85A30; }
+  .pill-conf.mid  { color: #BA7517; }
+  .pill-conf.low  { color: #534AB7; }
+  .pill-btn { font-size: 10px; color: #534AB7; background: #EEEDFE; border: none; border-radius: 8px; padding: 3px 7px; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: background 0.15s; }
+  .pill-btn:hover { background: #CECBF6; }
+  .pill-btn.open  { background: #534AB7; color: #fff; }
+  .pill-btn.open:hover { background: #3C3489; }
+
+  .distortion-desc {
+    display: none;
+    background: #f7f6ff;
+    border: 0.5px solid #d4d1f5;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    animation: fadeUp 0.2s ease;
+  }
+  .distortion-desc.visible { display: block; }
+  .desc-title { font-size: 12px; font-weight: 600; color: #534AB7; margin-bottom: 4px; }
+  .desc-body  { font-size: 12px; color: #444; line-height: 1.6; }
+  .desc-example { font-size: 11px; color: #777; margin-top: 6px; font-style: italic; border-left: 2px solid #c8c5f0; padding-left: 8px; }
+
+  .panel-divider { height: 0.5px; background: #e0e0d8; }
 </style>
 </head>
 <body>
 
-<div id="chat-wrap">
-  <div id="chat-header">
-    <div id="avatar"><i class="ti ti-brain"></i></div>
-    <div id="header-info">
-      <h2>Psychology Assistant</h2>
-      <p>Here to help you understand your mind</p>
+<div id="app">
+
+  <!-- chat -->
+  <div id="chat-wrap">
+    <div id="chat-header">
+      <div id="avatar"><i class="ti ti-brain"></i></div>
+      <div id="header-info">
+        <h2>Psychology Assistant</h2>
+        <p>Here to help you understand your mind</p>
+      </div>
+      <div id="status-dot" title="Online"></div>
     </div>
-    <div id="status-dot" title="Online"></div>
-  </div>
 
-  <div id="messages">
-    <div class="msg bot">
-      <div class="bot-icon"><i class="ti ti-brain"></i></div>
-      <div class="bubble">Hello! I'm your psychology assistant. I'm here to help you explore psychological concepts, understand behaviors, or discuss mental well-being. What's on your mind today?</div>
+    <div id="messages">
+      <div class="msg-group bot">
+        <div class="msg bot">
+          <div class="bot-icon"><i class="ti ti-brain"></i></div>
+          <div class="bubble">Hello! I'm your psychology assistant. I'm here to help you explore psychological concepts, understand behaviors, or discuss mental well-being. What's on your mind today?</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="suggestion-chips" id="chips">
+      <button class="chip" onclick="useChip(this)">What is cognitive dissonance?</button>
+      <button class="chip" onclick="useChip(this)">How does anxiety develop?</button>
+      <button class="chip" onclick="useChip(this)">Explain attachment styles</button>
+      <button class="chip" onclick="useChip(this)">Tips for managing stress</button>
+    </div>
+
+    <div id="input-area">
+      <textarea id="user-input" placeholder="Ask me anything about psychology…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button id="send-btn" onclick="sendMessage()" aria-label="Send message">
+        <i class="ti ti-send-2"></i>
+      </button>
     </div>
   </div>
 
-  <div class="suggestion-chips" id="chips">
-    <button class="chip" onclick="useChip(this)">What is cognitive dissonance?</button>
-    <button class="chip" onclick="useChip(this)">How does anxiety develop?</button>
-    <button class="chip" onclick="useChip(this)">Explain attachment styles</button>
-    <button class="chip" onclick="useChip(this)">Tips for managing stress</button>
+  <!-- distortion panel -->
+  <div id="distortion-panel">
+    <div id="panel-header">
+      <i class="ti ti-radar" aria-hidden="true"></i>
+      <span>Cognitive patterns</span>
+    </div>
+    <div id="panel-body">
+      <div id="panel-empty">
+        <i class="ti ti-mood-search" aria-hidden="true"></i>
+        <p>Detected thought patterns will appear here as you share what's on your mind.</p>
+      </div>
+    </div>
   </div>
 
-  <div id="input-area">
-    <textarea id="user-input" placeholder="Ask me anything about psychology…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-    <button id="send-btn" onclick="sendMessage()" aria-label="Send message">
-      <i class="ti ti-send-2"></i>
-    </button>
-  </div>
 </div>
 
 <script>
-const messages = document.getElementById('messages');
-const input = document.getElementById('user-input');
-const sendBtn = document.getElementById('send-btn');
-const chips = document.getElementById('chips');
-let history = [];
+// ── distortion knowledge base ──────────────────────────────────────────────
+const DISTORTIONS = {
+  "All-or-nothing thinking": {
+    description: "Seeing things in black and white, with no middle ground. If a situation falls short of perfect, it is seen as a total failure.",
+    explanation: "This pattern makes it hard to appreciate partial success or nuance. It leads to extreme judgments about oneself and the world, and often fuels feelings of shame or hopelessness.",
+    example: "\"I made one mistake in my presentation, so the whole thing was a disaster.\""
+  },
+  "Emotional Reasoning": {
+    description: "Assuming that negative emotions reflect reality — if you feel it, it must be true.",
+    explanation: "Emotions are treated as evidence of fact. Because a feeling is strong and real, the thought behind it is assumed to be accurate, even when objective evidence says otherwise.",
+    example: "\"I feel like a burden, therefore I must actually be one.\""
+  },
+  "Fortune-Telling": {
+    description: "Predicting that things will turn out badly, and treating this prediction as fact.",
+    explanation: "The mind rehearses negative future outcomes as if they are certain. This leads to avoidance and self-fulfilling prophecies, since actions are taken based on an imagined worst case.",
+    example: "\"There's no point in applying — I already know I won't get the job.\""
+  },
+  "Labeling": {
+    description: "Attaching a global negative label to oneself or others based on a single event or flaw.",
+    explanation: "Instead of describing a specific behavior, a permanent identity is assigned. Labels are rigid and leave no room for growth or context.",
+    example: "\"I forgot that deadline. I'm completely irresponsible.\""
+  },
+  "Magnification": {
+    description: "Blowing the importance of problems or shortcomings out of proportion, while shrinking positives.",
+    explanation: "Also called catastrophising, this distortion turns small setbacks into catastrophes and dismisses achievements as trivial. It skews the perception of risk and self-worth.",
+    example: "\"I stumbled over my words once — everyone thinks I'm incompetent now.\""
+  },
+  "Mental filter": {
+    description: "Focusing exclusively on one negative detail while ignoring the overall picture.",
+    explanation: "Like a drop of ink that clouds a glass of water, a single negative element colours the entire experience. Positive aspects are filtered out and never registered.",
+    example: "\"My manager praised my work but mentioned one area to improve. The whole review was terrible.\""
+  },
+  "Mind Reading": {
+    description: "Assuming you know what others are thinking, usually assuming the worst.",
+    explanation: "Without any real evidence, conclusions are drawn about other people's thoughts and motives. This often leads to unnecessary conflict, withdrawal, or hurt feelings.",
+    example: "\"She didn't reply to my message — she must be angry with me.\""
+  },
+  "No Distortion": {
+    description: "No significant cognitive distortion was detected in this message.",
+    explanation: "The thinking reflected here appears balanced and grounded in reality. This is a healthy sign — thoughts are not being systematically skewed in a negative direction.",
+    example: ""
+  },
+  "Overgeneralization": {
+    description: "Drawing a sweeping conclusion based on a single negative event, expecting it to repeat endlessly.",
+    explanation: "Words like 'always', 'never', 'everyone', and 'nobody' are common markers. One bad experience becomes a pattern that defines all future expectations.",
+    example: "\"I failed this time. I never succeed at anything.\""
+  },
+  "Personalization": {
+    description: "Blaming yourself for events outside your control, or taking excessive responsibility for others' feelings.",
+    explanation: "The self is placed at the centre of events that have many causes. This generates excessive guilt and a distorted sense of power over external outcomes.",
+    example: "\"My friend is in a bad mood — it must be something I did.\""
+  },
+  "Should statements": {
+    description: "Holding rigid rules about how you or others must behave, leading to guilt or frustration when they are not met.",
+    explanation: "These inflexible demands — 'I should', 'I must', 'I ought to' — create unrealistic standards. When those standards are not met, the result is shame toward oneself or resentment toward others.",
+    example: "\"I should always be productive. If I rest, I'm being lazy.\""
+  }
+};
 
+// ── state ──────────────────────────────────────────────────────────────────
+const messages  = document.getElementById('messages');
+const input     = document.getElementById('user-input');
+const sendBtn   = document.getElementById('send-btn');
+const chips     = document.getElementById('chips');
+const panelBody = document.getElementById('panel-body');
+let history = [];
+let chartCounter = 0;
+
+// ── helpers ────────────────────────────────────────────────────────────────
 function autoResize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
-
 function handleKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 }
-
 function useChip(btn) {
   input.value = btn.textContent;
   chips.style.display = 'none';
   sendMessage();
 }
 
-function addMessage(role, text) {
+// ── chat messages ──────────────────────────────────────────────────────────
+function addUserMessage(text) {
+  const group = document.createElement('div');
+  group.className = 'msg-group user';
   const wrap = document.createElement('div');
-  wrap.className = 'msg ' + role;
-  if (role === 'bot') {
-    const icon = document.createElement('div');
-    icon.className = 'bot-icon';
-    icon.innerHTML = '<i class="ti ti-brain"></i>';
-    wrap.appendChild(icon);
-  }
+  wrap.className = 'msg user';
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
   bubble.textContent = text;
   wrap.appendChild(bubble);
-  messages.appendChild(wrap);
+  group.appendChild(wrap);
+  messages.appendChild(group);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function addBotMessage(text) {
+  const group = document.createElement('div');
+  group.className = 'msg-group bot';
+  const wrap = document.createElement('div');
+  wrap.className = 'msg bot';
+  const icon = document.createElement('div');
+  icon.className = 'bot-icon';
+  icon.innerHTML = '<i class="ti ti-brain"></i>';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  wrap.appendChild(icon);
+  wrap.appendChild(bubble);
+  group.appendChild(wrap);
+  messages.appendChild(group);
   messages.scrollTop = messages.scrollHeight;
 }
 
 function showTyping() {
+  const group = document.createElement('div');
+  group.className = 'msg-group bot';
+  group.id = 'typing-indicator';
   const wrap = document.createElement('div');
   wrap.className = 'msg bot';
-  wrap.id = 'typing-indicator';
   const icon = document.createElement('div');
   icon.className = 'bot-icon';
   icon.innerHTML = '<i class="ti ti-brain"></i>';
-  wrap.appendChild(icon);
   const bubble = document.createElement('div');
   bubble.className = 'bubble typing';
   bubble.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  wrap.appendChild(icon);
   wrap.appendChild(bubble);
-  messages.appendChild(wrap);
+  group.appendChild(wrap);
+  messages.appendChild(group);
   messages.scrollTop = messages.scrollHeight;
 }
 
@@ -151,11 +310,170 @@ function removeTyping() {
   if (el) el.remove();
 }
 
+// ── distortion panel ───────────────────────────────────────────────────────
+function toggleDesc(name, descEl, btn) {
+  const isOpen = descEl.classList.contains('visible');
+  // close all other open descriptions in the same entry
+  descEl.closest('.panel-pills').querySelectorAll('.distortion-desc').forEach(d => {
+    d.classList.remove('visible');
+  });
+  descEl.closest('.panel-pills').querySelectorAll('.pill-btn').forEach(b => {
+    b.classList.remove('open');
+    b.textContent = 'Know more';
+  });
+
+  if (!isOpen) {
+    descEl.classList.add('visible');
+    btn.classList.add('open');
+    btn.textContent = 'Close';
+    // scroll the panel so the description is visible
+    setTimeout(() => descEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  }
+}
+
+function updatePanel(distortions) {
+  const empty = document.getElementById('panel-empty');
+  if (empty) empty.remove();
+
+  if (panelBody.children.length > 0) {
+    const divider = document.createElement('div');
+    divider.className = 'panel-divider';
+    panelBody.appendChild(divider);
+  }
+
+  const entry = document.createElement('div');
+  entry.className = 'panel-entry';
+
+  // timestamp label
+  const label = document.createElement('div');
+  label.className = 'panel-entry-label';
+  label.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  entry.appendChild(label);
+
+  // chart
+  const chartId = 'dchart-' + (++chartCounter);
+  const chartHeight = distortions.length * 38 + 24;
+  const canvasWrap = document.createElement('div');
+  canvasWrap.className = 'chart-canvas-wrap';
+  canvasWrap.style.height = chartHeight + 'px';
+  const canvas = document.createElement('canvas');
+  canvas.id = chartId;
+  canvas.setAttribute('role', 'img');
+  canvas.setAttribute('aria-label', 'Horizontal bar chart of detected cognitive distortions');
+  canvas.textContent = distortions.map(d => d.distortion + ': ' + Math.round(d.confidence * 100) + '%').join(', ');
+  canvasWrap.appendChild(canvas);
+  entry.appendChild(canvasWrap);
+
+  // pills + inline descriptions
+  const pills = document.createElement('div');
+  pills.className = 'panel-pills';
+
+  distortions.forEach(d => {
+    const conf = Math.round(d.confidence * 100);
+    const confClass = conf >= 70 ? 'high' : conf >= 50 ? 'mid' : 'low';
+    const info = DISTORTIONS[d.distortion];
+
+    const item = document.createElement('div');
+    item.className = 'pill-item';
+
+    // pill row
+    const row = document.createElement('div');
+    row.className = 'panel-pill-row';
+
+    const name = document.createElement('span');
+    name.className = 'panel-pill-name';
+    name.title = d.distortion;
+    name.textContent = d.distortion;
+
+    const confBadge = document.createElement('span');
+    confBadge.className = 'pill-conf ' + confClass;
+    confBadge.textContent = conf + '%';
+
+    const btn = document.createElement('button');
+    btn.className = 'pill-btn';
+    btn.textContent = 'Know more';
+
+    row.appendChild(name);
+    row.appendChild(confBadge);
+    row.appendChild(btn);
+    item.appendChild(row);
+
+    // inline description box (hidden until toggled)
+    if (info) {
+      const desc = document.createElement('div');
+      desc.className = 'distortion-desc';
+
+      const title = document.createElement('div');
+      title.className = 'desc-title';
+      title.textContent = d.distortion;
+
+      const defP = document.createElement('p');
+      defP.className = 'desc-body';
+      defP.textContent = info.description;
+
+      const expP = document.createElement('p');
+      expP.className = 'desc-body';
+      expP.style.marginTop = '6px';
+      expP.textContent = info.explanation;
+
+      desc.appendChild(title);
+      desc.appendChild(defP);
+      desc.appendChild(expP);
+
+      if (info.example) {
+        const ex = document.createElement('p');
+        ex.className = 'desc-example';
+        ex.textContent = info.example;
+        desc.appendChild(ex);
+      }
+
+      btn.onclick = () => toggleDesc(d.distortion, desc, btn);
+      item.appendChild(desc);
+    }
+
+    pills.appendChild(item);
+  });
+
+  entry.appendChild(pills);
+  panelBody.appendChild(entry);
+  panelBody.scrollTop = panelBody.scrollHeight;
+
+  // draw chart
+  setTimeout(() => {
+    const labels = distortions.map(d => d.distortion.length > 20 ? d.distortion.slice(0, 18) + '…' : d.distortion);
+    const values = distortions.map(d => Math.round(d.confidence * 100));
+    const colors = values.map(v => v >= 70 ? '#D85A30' : v >= 50 ? '#BA7517' : '#534AB7');
+
+    new Chart(document.getElementById(chartId), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, borderRadius: 4, barThickness: 16 }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ' ' + ctx.parsed.x + '% confidence' } }
+        },
+        scales: {
+          x: { min: 0, max: 100, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 }, color: '#888', callback: v => v + '%' }, border: { display: false } },
+          y: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#444' }, border: { display: false } }
+        },
+        layout: { padding: { right: 4 } }
+      }
+    });
+  }, 50);
+}
+
+// ── main send ──────────────────────────────────────────────────────────────
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
   chips.style.display = 'none';
-  addMessage('user', text);
+  addUserMessage(text);
   history.push({ role: 'user', content: text });
   input.value = '';
   input.style.height = 'auto';
@@ -163,7 +481,6 @@ async function sendMessage() {
   showTyping();
 
   try {
-    // Replace this fetch with your Django /chat endpoint
     const res = await fetch('/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -171,18 +488,19 @@ async function sendMessage() {
     });
     const data = await res.json();
     const reply = data.answer || 'Sorry, I could not get a response.';
+    const distortions = data.distortions || [];
     history.push({ role: 'assistant', content: reply });
     removeTyping();
-    addMessage('bot', reply);
+    addBotMessage(reply);
+    if (distortions.length > 0) updatePanel(distortions);
   } catch (err) {
     removeTyping();
-    addMessage('bot', 'Something went wrong. Please check your connection and try again.');
+    addBotMessage('Something went wrong. Please check your connection and try again.');
   }
 
   sendBtn.disabled = false;
   input.focus();
 }
 </script>
-
 </body>
 </html>

@@ -6,10 +6,10 @@ from sentence_transformers import SentenceTransformer,CrossEncoder
 from langchain_huggingface import HuggingFaceEmbeddings
 
 embedding_model = HuggingFaceEmbeddings(
-    model_name="./models/BAAI/bge-base-en-v1.5"
+    model_name=r"models\bge-base-en-v1.5"
 )
 reranker = CrossEncoder(
-    "./models/BAAI/bge-reranker-base"
+    r"models\bge-reranker-base"
 )
 llm = ChatOllama(
     model="qwen2.5:1.5b"

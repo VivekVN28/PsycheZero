@@ -1,13 +1,16 @@
-PsycheZero
+# PsycheZero
 
+## Overvie
 Introducing psychezero, an mental health chatbot that stores user memory and helps user equip with psychological concepts with legit source via RAG. 
 
 To optimize rag retrieval techniques such as chunking, recursive splitting,semantic retrival, reranking are implemented and to overcome users lack of psychology jargons, Hyde have being implemented that increase retrieval score.
 
+## Dataset
 In order to make fast and accurate classification, I have fine tuned ModernBert with 2 datasets on CBT classification tasks 
 1. Cognitive Distortion detetction dataset on kaggle:https://www.kaggle.com/datasets/sagarikashreevastava/cognitive-distortion-detetction-dataset/data
 2. Cognitive Distortion Dataset for Text Classification in Bahasa Indonesia: https://data.mendeley.com/datasets/k84bkv8dkt/4
 
+ over these labels
 ['All-or-nothing thinking',
  'Emotional Reasoning',
  'Fortune-telling',
@@ -20,7 +23,7 @@ In order to make fast and accurate classification, I have fine tuned ModernBert 
  'Personalization',
  'Should statements']
 
- achieving 
+### Model Performance
 
 | Cognitive Distortion | Precision | Recall | F1-Score | Support |
 | :--- | :---: | :---: | :---: | :---: |

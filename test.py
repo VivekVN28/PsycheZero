@@ -1,48 +1,54 @@
-from vector_db import VectorStore
-from langchain_ollama import ChatOllama
-from main import router_node
-from langchain_core.messages import HumanMessage
-llm=ChatOllama(
-    model="qwen2.5:1.5b"
+import torch
+from transformers import (
+    AutoTokenizer,
+    AutoModelForSequenceClassification
 )
 
-test_cases = [
-    {
-        "query": "What is CBT?",
-        "expected": "rag"
-    },
-    {
-        "query": "Explain attachment theory",
-        "expected": "rag"
-    },
-    {
-        "query": "I feel lonely",
-        "expected": "chatllm"
-    },
-    {
-        "query": "I am anxious about exams",
-        "expected": "chatllm"
-    },
+model_path = r"models\finetuned ModernBERT"
+
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+model = AutoModelForSequenceClassification.from_pretrained(
+    model_path
+)
+id2label = {
+    0: "All-or-nothing thinking",
+    1: "Emotional Reasoning",
+    2: "Fortune-Telling",
+    3: "Labeling",
+    4: "Magnification",
+    5: "Mental filter",
+    6: "Mind Reading",
+    7: "No Distortion",
+    8: "Overgeneralization",
+    9: "Personalization",
+    10: "Should statements"
+}
+text = "i hate my face and i am sure others think the same"
+inputs = tokenizer(
+    text,
+    return_tensors="pt",
+    truncation=True,
+    max_length=256
+)
+
+with torch.no_grad():
+    outputs = model(**inputs)
+
+logits = outputs.logits
+
+probs = torch.sigmoid(logits)[0]
+
+results = [
+    (id2label[i], probs[i].item())
+    for i in range(len(probs))
 ]
-for case in test_cases:
 
-    state = {
-        "messages": [
-            HumanMessage(content=case["query"])
-        ]
-    }
+results = sorted(
+    results,
+    key=lambda x: x[1],
+    reverse=True
+)
 
-    predicted = router_node(state)
-
-    print(
-        case["query"],
-        predicted,
-        case["expected"]
-    )
-    if predicted == case["expected"]:
-        correct += 1
-
-accuracy = correct / len(test_cases)
-
-print(f"Accuracy: {accuracy:.2%}")
-
+for distortion, prob in results:
+    print(f"{distortion}: {prob:.4f}")
